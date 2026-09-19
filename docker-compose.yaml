@@ -1,0 +1,43 @@
+version: '3.9'
+
+services:
+  web:
+    image: php:8.2-apache
+    container_name: lampung_web
+    ports:
+      - "8080:80"
+    volumes:
+      - ./public:/var/www/html
+      - ./app:/var/www/app
+      - ./assets:/var/www/html/assets
+      - ./database:/var/www/database
+    working_dir: /var/www/html
+    environment:
+      - ML_SERVICE_URL=http://ml:8000/predict
+    depends_on:
+      - ml
+    command: >
+      bash -c "docker-php-ext-install pdo_sqlite > /dev/null 2>&1 &&
+               a2enmod rewrite &&
+               apache2-foreground"
+
+  ml:
+    build: ./ml
+    container_name: lampung_ml
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./ml:/app
+      - ./database:/app/database
+    command: uvicorn app:app --host 0.0.0.0 --port 8000
+    working_dir: /app
+
+  ml-trainer:
+    build: ./ml
+    container_name: lampung_ml_trainer
+    volumes:
+      - ./ml:/app
+      - ./database:/app/database
+    working_dir: /app
+    command: python model.py
+    profiles: ["train"]
